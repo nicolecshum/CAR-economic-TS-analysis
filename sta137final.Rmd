@@ -1,0 +1,442 @@
+---
+title: "Time series analysis of Central African Republic (CAR) exports"
+author: "Nicole Shum"
+date: "2025-06-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+
+```
+
+```{r}
+car_df = finalPro_data
+
+```
+
+```{r}
+mean(car_df$GDP)
+sd(car_df$GDP)
+
+mean(car_df$Imports)
+sd(car_df$Imports)
+
+min(car_df$Year)
+max(car_df$Year)
+
+dim(car_df)
+colnames(car_df)
+
+```
+
+
+
+
+```{r}
+ggplot(car_df, aes(x = Year, y = GDP)) +
+  geom_line(color = "hotpink", size = 1) +
+  labs(title = "raw", x = "year", y = "GDP") +
+  annotate("text", label = "", x = min(car_df$Year), y = min(car_df$GDP), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+```
+
+```{r}
+library(tseries)
+
+adf.test(car_df$GDP)
+
+```
+
+```{r}
+gdp_diff_1 = c(0)
+  
+car_df$gdp_diff_1 = c(gdp_diff_1, diff(car_df$GDP))
+
+ggplot(car_df, aes(x = Year, y = gdp_diff_1)) +
+  geom_line(color = "hotpink", size = 1) +
+  labs(title = "1st order difference", x = "year", y = "GDP") + 
+  annotate("text", label = "", x = min(car_df$Year), y = min(car_df$gdp_diff_1), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+```
+
+```{r}
+
+adf.test(car_df$gdp_diff_1)
+
+```
+
+```{r}
+n = length(car_df$GDP)
+
+segment = c(rep("first", n/2), rep("second", n/2))
+
+grouped_data <- data.frame(value = car_df$GDP, group = segment)
+
+leveneTest(value ~ group, data = grouped_data)
+```
+
+```{r}
+acf(car_df$GDP, main = "ACF (raw)")
+```
+
+```{r}
+pacf(car_df$GDP, main = "PACF (raw)")
+```
+
+```{r}
+
+acf(car_df$gdp_diff_1, main = "ACF (difference)")
+
+```
+
+
+```{r}
+
+pacf(car_df$gdp_diff_1, main = "PACF (difference)")
+
+```
+
+```{r}
+library(car)
+
+n = length(car_df$gdp_diff_1)
+
+segment = c(rep("first", n/2), rep("second", n/2))
+
+grouped_data <- data.frame(value = car_df$gdp_diff_1, group = segment)
+
+leveneTest(value ~ group, data = grouped_data)
+
+```
+
+```{r}
+
+library(MASS)
+
+y = car_df$GDP
+
+bc = boxcox(y ~ 1, lambda = seq(-2, 2, 0.1))
+
+lambda = bc$x[which.max(bc$y)]
+
+gdp_bc = (y^lambda - 1) / lambda
+
+car_df$gdp_bc = gdp_bc
+
+car_df$gdp_bc_diff = c(0, diff(gdp_bc))
+
+ggplot(car_df, aes(x = Year, y = gdp_bc_diff)) +
+  geom_line(color = "hotpink", size = 1) +
+  labs(title = "Box-Cox transformation, d = 1", x = "year", y = "GDP") + 
+  annotate("text", label = "", x = min(car_df$Year), y = min(car_df$gdp_bc_diff), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+
+```
+
+```{r}
+
+acf(diff(car_df$gdp_bc), main = "ACF (Box-Cox)")
+
+```
+
+
+```{r}
+
+pacf(diff(car_df$gdp_bc), main = "PACF (Box-Cox)")
+
+```
+
+```{r}
+adf.test(car_df$gdp_bc_diff)
+```
+
+```{r}
+n = length(car_df$gdp_bc_diff)
+
+segment = c(rep("first", n/2), rep("second", n/2))
+
+grouped_data <- data.frame(value = car_df$gdp_bc_diff, group = segment)
+
+leveneTest(value ~ group, data = grouped_data)
+```
+
+```{r}
+
+car_df$gdp_log = log(car_df$GDP)
+
+car_df$gdp_log_diff = c(0, diff(car_df$gdp_log))
+
+ggplot(car_df, aes(x = Year, y = gdp_log_diff)) +
+  geom_line(color = "hotpink", size = 1) +
+  labs(title = "log transformation", x = "year", y = "GDP") + 
+  annotate("text", label = "", x = min(car_df$Year), y = log(min(car_df$gdp_log_diff)), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+
+```
+
+```{r}
+
+acf(diff(car_df$gdp_log), main = "ACF (log)")
+
+```
+
+
+```{r}
+
+pacf(diff(car_df$gdp_log), main = "PACF (log)")
+
+```
+
+```{r}
+adf.test(car_df$gdp_log_diff)
+```
+
+```{r}
+n = length(car_df$gdp_log_diff)
+
+segment = c(rep("first", n/2), rep("second", n/2))
+
+grouped_data <- data.frame(value = car_df$gdp_log_diff, group = segment)
+
+leveneTest(value ~ group, data = grouped_data)
+```
+
+```{r}
+ggplot(car_df, aes(x = Year, y = Imports)) +
+  geom_line(color = "skyblue", size = 1) +
+  labs(title = "Imports over time (raw)", x = "year", y = "imports") +
+  annotate("text", label = "", x = min(car_df$Year), y = min(car_df$Imports), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+```
+
+```{r}
+acf(car_df$Imports, main = "ACF (raw)")
+```
+
+```{r}
+pacf(car_df$Imports, main = "PACF (raw)")
+```
+
+```{r}
+adf.test(car_df$Imports)
+```
+
+```{r}
+n = length(car_df$Imports)
+
+segment = c(rep("first", n/2), rep("second", n/2))
+
+grouped_data <- data.frame(value = car_df$Imports, group = segment)
+
+leveneTest(value ~ group, data = grouped_data)
+```
+
+```{r}
+imports_diff_1 = c(0)
+  
+car_df$imports_diff_1 = c(imports_diff_1, diff(car_df$Imports))
+
+ggplot(car_df, aes(x = Year, y = imports_diff_1)) +
+  geom_line(color = "skyblue", size = 1) +
+  labs(title = "Imports over time (1st order difference)", x = "year", y = "imports") +
+  annotate("text", label = "", x = min(car_df$Year), y = min(car_df$imports_diff_1), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+```
+
+```{r}
+
+acf(car_df$imports_diff_1, main = "ACF (difference)")
+
+```
+
+
+```{r}
+
+pacf(car_df$imports_diff_1, main = "PACF (difference)")
+
+```
+
+```{r}
+adf.test(car_df$imports_diff_1)
+```
+
+```{r}
+n = length(car_df$imports_diff_1)
+
+segment = c(rep("first", n/2), rep("second", n/2))
+
+grouped_data <- data.frame(value = car_df$imports_diff_1, group = segment)
+
+leveneTest(value ~ group, data = grouped_data)
+```
+
+```{r}
+
+y = car_df$Imports
+
+bc = boxcox(y ~ 1, lambda = seq(-2, 2, 0.1))
+
+lambda = bc$x[which.max(bc$y)]
+
+imports_bc = (y^lambda - 1) / lambda
+
+car_df$imports_bc = imports_bc
+
+ggplot(car_df, aes(x = Year, y = imports_bc)) +
+  geom_line(color = "skyblue", size = 1) +
+  labs(title = "Box-Cox transformation", x = "year", y = "imports") + 
+  annotate("text", label = "", x = min(car_df$Year), y = min(car_df$imports_bc), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+
+```
+
+```{r}
+
+acf(car_df$imports_bc, main = "ACF (Box-Cox)")
+
+```
+
+
+```{r}
+
+pacf(car_df$imports_bc, main = "PACF (Box-Cox)")
+
+```
+
+```{r}
+
+car_df$imports_log = log(car_df$Imports)
+
+ggplot(car_df, aes(x = Year, y = log(Imports))) +
+  geom_line(color = "skyblue", size = 1) +
+  labs(title = "log transformation", x = "year", y = "imports") + 
+  annotate("text", label = "", x = min(car_df$Year), y = log(min(car_df$Imports)), 
+           hjust = 0, vjust = -0.5, size = 12) +
+  theme_bw()
+
+```
+
+```{r}
+
+acf(car_df$imports_log, main = "ACF (log)")
+
+```
+
+
+```{r}
+
+pacf(car_df$imports_log, main = "PACF (log)")
+
+```
+
+```{r}
+library(forecast)
+
+gdp_model = arima(car_df$gdp_log, order = c(0, 1, 0))
+
+imports_model = arima(car_df$Imports, order = c(1, 1, 2))
+
+```
+
+```{r}
+auto_gdp_model = auto.arima(car_df$gdp_log)
+
+auto_imports_model = auto.arima(car_df$Imports)
+```
+
+```{r}
+summary(gdp_model)
+```
+
+```{r}
+summary(auto_gdp_model)
+```
+
+```{r}
+gdp_model_drift = Arima(car_df$gdp_log, order = c(0,1,0), include.drift = TRUE)
+```
+
+```{r}
+summary(gdp_model_drift)
+```
+
+```{r}
+summary(imports_model)
+```
+
+```{r}
+summary(auto_imports_model)
+```
+
+```{r}
+
+checkresiduals(auto_imports_model)
+
+```
+
+```{r}
+
+checkresiduals(gdp_model_drift)
+
+```
+
+```{r}
+
+horizon = 10
+
+forecast_gdp = forecast(gdp_model_drift, h = horizon)
+
+forecast_imports = forecast(auto_imports_model, h = horizon)
+
+fc_gdp_df = data.frame(
+  Year = max(car_df$Year) + 1:horizon,
+  forecast = exp(as.numeric(forecast_gdp$mean)),
+  lower = exp(as.numeric(forecast_gdp$lower[,2])),
+  upper = exp(as.numeric(forecast_gdp$upper[,2]))
+)
+
+fc_imports_df = data.frame(
+  Year = max(car_df$Year) + 1:horizon,
+  forecast = as.numeric(forecast_imports$mean),
+  lower = as.numeric(forecast_imports$lower[,2]),
+  upper = as.numeric(forecast_imports$upper[,2])
+)
+
+```
+
+```{r}
+
+ggplot() +
+  geom_line(data = car_df, aes(x = Year, y = GDP), color = "hotpink", size = 1) +
+  geom_line(data = fc_gdp_df, aes(x = Year, y = forecast), color = "gold", size = 1) +
+  labs(title = "ARIMA(0, 1, 0) with drift",
+       x = "Year", y = "GDP") +
+  geom_ribbon(data = fc_gdp_df, aes(x = Year, ymin = lower, ymax = upper), alpha = 0.3, fill = "pink") +
+  theme_bw()
+
+
+
+```
+
+```{r}
+
+ggplot() +
+  geom_line(data = car_df, aes(x = Year, y = Imports), color = "skyblue", size = 1) +
+  geom_line(data = fc_imports_df, aes(x = Year, y = forecast), color = "gold", size = 1) +
+  labs(title = "ARIMA(0, 1, 2)",
+       x = "Year", y = "Imports") +
+  geom_ribbon(data = fc_imports_df, aes(x = Year, ymin = lower, ymax = upper), alpha = 0.3, fill = "lightblue") +
+  theme_bw()
+
+```
+
